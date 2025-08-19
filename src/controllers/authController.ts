@@ -2,7 +2,6 @@ import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import User from "../models/User";
 import jwt from "jsonwebtoken";
-const JWT_SECRET = process.env.JWT_SECRET!;
 
 export const register = async (req: Request, res: Response) => {
   const { name, email, password } = req.body;
@@ -10,10 +9,10 @@ export const register = async (req: Request, res: Response) => {
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: "Email is already exists" });
-      const hashPassword = await bcrypt.hash(password, 10);
-      const user = await User.create({ name, email, password: hashPassword });
-      res.status(201).json({ message: "User registered successfully", user });
     }
+    const hashPassword = await bcrypt.hash(password, 10);
+    const user = await User.create({ name, email, password: hashPassword });
+    res.status(201).json({ message: "User registered successfully", user });
   } catch (error) {
     res.status(500).json({ message: "Register failed", error: error });
   }
@@ -21,8 +20,10 @@ export const register = async (req: Request, res: Response) => {
 
 export const login = async (req: Request, res: Response) => {
   const { email, password } = req.body;
+
   try {
     const user = await User.findOne({ email });
+
     if (!user) {
       return res.status(400).json({ message: "User not found" });
     }
@@ -30,9 +31,19 @@ export const login = async (req: Request, res: Response) => {
     if (!isMatch) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
-    const token = jwt.sign({ id: user._id, email: user.email }, JWT_SECRET, {
-      expiresIn: "1d",
-    });
+
+    if (!process.env.JWT_SECRET) {
+      console.log("JWT_SECRET environment variable is not defined");
+    }
+    const token = jwt.sign(
+      { id: user._id, email: user.email },
+      process.env.JWT_SECRET as string,
+      {
+        expiresIn: "1d",
+      }
+    );
+
+    console.log("token", token);
 
     res.json({
       token,
